@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Конструктор цветов — проверка</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; background: #07130c; font-family: system-ui, sans-serif; }
+  #app { position: fixed; inset: 0; }
+  canvas { display: block; touch-action: none; }
+
+  .top {
+    position: fixed;
+    top: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(94vw, 620px);
+    padding: 10px;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    border-radius: 16px;
+    background: rgba(8, 22, 14, 0.72);
+    border: 1px solid rgba(255,255,255,0.12);
+    backdrop-filter: blur(14px);
+    z-index: 10;
+  }
+  .top::-webkit-scrollbar { display: none; }
+
+  button {
+    flex: 0 0 auto;
+    padding: 10px 14px;
+    border: 1px solid rgba(255,255,255,0.16);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.06);
+    color: #eafff0;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  button.active {
+    background: #2f8f57;
+    border-color: #59d68b;
+  }
+
+  .hint {
+    position: fixed;
+    left: 50%;
+    bottom: 22px;
+    transform: translateX(-50%);
+    width: min(92vw, 520px);
+    padding: 12px 16px;
+    border-radius: 16px;
+    background: rgba(8, 22, 14, 0.72);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #f4fff7;
+    text-align: center;
+    font-size: 13px;
+    backdrop-filter: blur(14px);
+    z-index: 10;
+  }
+
+  .loading {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #d9ffe8;
+    font-size: 15px;
+    background: #07130c;
+    z-index: 20;
+    transition: opacity 0.5s;
+  }
+  .loading.hidden { opacity: 0; pointer-events: none; }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<div class="top" id="menu">
+  <button data-flower="rose" class="active">Роза</button>
+  <button data-flower="tulip">Тюльпан</button>
+  <button data-flower="sunflower">Подсолнух</button>
+  <button data-flower="lily">Лилия</button>
+  <button data-flower="hydrangea">Гортензия</button>
+  <button data-flower="peony">Пион</button>
+</div>
+
+<div class="hint">Проведи пальцем, чтобы вращать цветок. Разведи пальцы, чтобы приблизить.</div>
+<div class="loading" id="loading">Создаём цветы…</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const app = document.getElementById('app');
+const loading = document.getElementById('loading');
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#08150d');
+scene.fog = new THREE.FogExp2('#08150d', 0.05);
+
+const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 100);
+camera.position.set(0, 1.15, 2.7);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.85, 0);
+controls.enableDamping = true;
+controls.minDistance = 0.9;
+controls.maxDistance = 5;
+controls.maxPolarAngle = Math.PI * 0.52;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.6;
+
+scene.add(new THREE.HemisphereLight('#b8ffd2', '#16241a', 0.55));
+
+const sun = new THREE.DirectionalLight('#ffe3b0', 2.6);
+sun.position.set(2.5, 5, 2);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+scene.add(sun);
+
+const rim = new THREE.DirectionalLight('#8fd8ff', 0.8);
+rim.position.set(-3, 2, -3);
+scene.add(rim);
+
+const warm = new THREE.PointLight('#ffb877', 8, 8, 2);
+warm.position.set(-1, 1, 1.5);
+scene.add(warm);
+
+const ground = new THREE.Mesh(
+  new THREE.CircleGeometry(12, 64),
+  new THREE.MeshStandardMaterial({ color: '#16301d', roughness: 1 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+for (let i = 0; i < 70; i++) {
+  const a = Math.random() * Math.PI * 2;
+  const r = 0.4 + Math.random() * 2;
+  const moss = new THREE.Mesh(
+    new THREE.SphereGeometry(0.03 + Math.random() * 0.06, 6, 5),
+    new THREE.MeshStandardMaterial({ color: '#2b5c33', roughness: 1 })
+  );
+  moss.position.set(Math.cos(a) * r, 0.01, Math.sin(a) * r);
+  moss.scale.y = 0.35;
+  scene.add(moss);
+}
+
+for (let i = 0; i < 18; i++) {
+  const a = (i / 18) * Math.PI * 2 + Math.random();
+  const r = 5 + Math.random() * 4;
+  const h = 2.5 + Math.random() * 3.5;
+  const trunk = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.08, 0.15, h, 7),
+    new THREE.MeshStandardMaterial({ color: '#392a20', roughness: 0.9 })
+  );
+  trunk.position.set(Math.cos(a) * r, h / 2, Math.sin(a) * r);
+  scene.add(trunk);
+
+  const crown = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(0.8 + Math.random() * 0.7, 1),
+    new THREE.MeshStandardMaterial({ color: '#1d4a2a', roughness: 0.9 })
+  );
+  crown.position.set(trunk.position.x, h + 0.3, trunk.position.z);
+  crown.scale.y = 0.8;
+  scene.add(crown);
+}
+
+function makePetalTexture(base, light, vein) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+
+  const gradient = ctx.createLinearGradient(0, 512, 0, 0);
+  gradient.addColorStop(0, base);
+  gradient.addColorStop(0.65, light);
+  gradient.addColorStop(1, light);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 256, 512);
+
+  ctx.strokeStyle = vein;
+  ctx.globalAlpha = 0.28;
+  ctx.lineWidth = 1.1;
+
+  for (let i = 0; i < 22; i++) {
+    ctx.beginPath();
+    ctx.moveTo(128, 500);
+    const x = 20 + Math.random() * 216;
+    ctx.quadraticCurveTo(128 + (x - 128) * 0.4, 300, x, 30 + Math.random() * 60);
+    ctx.stroke();
+  }
+
+  ctx.globalAlpha = 0.16;
+  for (let i = 0; i < 900; i++) {
+    ctx.fillStyle = Math.random() > 0.5 ? '#ffffff' : '#000000';
+    ctx.beginPath();
+    ctx.arc(Math.random() * 256, Math.random() * 512, Math.random() * 1.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+function createPetalGeometry({
+  length = 0.5,
+  width = 0.35,
+  curl = 0.35,
+  cup = 0.12,
+  rings = 18,
+  segments = 20
+} = {}) {
+  const positions = [];
+  const uvs = [];
+  const indices = [];
+
+  for (let r = 0; r <= rings; r++) {
+    const t = r / rings;
+    const y = t * length;
+    const half = width * 0.5 * Math.pow(Math.sin(Math.PI * (0.1 + 0.9 * t)), 1.25);
+
+    for (let s = 0; s <= segments; s++) {
+      const u = s / segments;
+      const x = (u - 0.5) * 2 * half;
+      const edge = Math.pow(Math.abs(u - 0.5) * 2, 2);
+      const z = curl * y * y + cup * edge * length * 0.35;
+
+      positions.push(x, y, z);
+      uvs.push(u, t);
+    }
+  }
+
+  for (let r = 0; r < rings; r++) {
+    for (let s = 0; s < segments; s++) {
+      const a = r * (segments + 1) + s;
+      const b = a + 1;
+      const c = a + segments + 1;
+      const d = c + 1;
+
+      indices.push(a, c, b, b, c, d);
+    }
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+function petalMaterial(base, light, vein, roughness = 0.42) {
+  return new THREE.MeshPhysicalMaterial({
+    map: makePetalTexture(base, light, vein),
+    roughness,
+    metalness: 0,
+    clearcoat: 0.35,
+    clearcoatRoughness: 0.35,
+    sheen: 0.65,
+    sheenColor: new THREE.Color(light),
+    side: THREE.DoubleSide
+  });
+}
+
+function addStem(group, height = 1, color = '#3f7a35') {
+  const stem = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.018, 0.028, height, 14),
+    new THREE.MeshStandardMaterial({ color, roughness: 0.6 })
+  );
+  stem.position.y = height / 2;
+  stem.castShadow = true;
+  group.add(stem);
+}
+
+function addLeaves(group, count = 3, color = '#3d8a3a') {
+  for (let i = 0; i < count; i++) {
+    const leaf = new THREE.Mesh(
+      createPetalGeometry({ length: 0.32, width: 0.16, curl: 0.12, cup: 0.05 }),
+      new THREE.MeshStandardMaterial({ color, roughness: 0.55, side: THREE.DoubleSide })
+    );
+    const angle = (i / count) * Math.PI * 2;
+    leaf.position.set(0, 0.25 + i * 0.16, 0);
+    leaf.rotation.set(-0.7, angle, 0.7);
+    leaf.castShadow = true;
+    group.add(leaf);
+  }
+}
+
+function buildRose() {
+  const flower = new THREE.Group();
+  addStem(flower, 0.95);
+  addLeaves(flower, 3, '#3d7c38');
+
+  const head = new THREE.Group();
+  head.position.y = 1.02;
+  flower.add(head);
+
+  const material = petalMaterial('#8d0f26', '#ef5f74', '#5c0714', 0.38);
+  const layers = [
+    { count: 9, tilt: -0.95, scale: 1.05, radius: 0.1 },
+    { count: 8, tilt: -0.55, scale: 0.85, radius: 0.06 },
+    { count: 6, tilt: -0.2, scale: 0.65, radius: 0.03 }
+  ];
+
+  layers.forEach((layer, li) => {
+    for (let i = 0; i < layer.count; i++) {
+      const petal = new THREE.Mesh(
+        createPetalGeometry({ length: 0.42, width: 0.36, curl: 0.55, cup: 0.16 }),
+        material
+      );
+      const angle = (i / layer.count) * Math.PI * 2 + li * 0.4;
+
+      petal.position.set(
+        Math.cos(angle) * layer.radius,
+        li * 0.035,
+        Math.sin(angle) * layer.radius
+      );
+      petal.rotation.set(layer.tilt, angle, 0.08);
+      petal.scale.setScalar(layer.scale);
+      petal.castShadow = true;
+      head.add(petal);
+    }
+  });
+
+  const center = new THREE.Mesh(
+    new THREE.SphereGeometry(0.05, 18, 14),
+    new THREE.MeshStandardMaterial({ color: '#650a18', roughness: 0.5 })
+  );
+  center.position.y = 0.05;
+  head.add(center);
+
+  return flower;
+}
+
+function buildTulip() {
+  const flower = new THREE.Group();
+  addStem(flower, 1.05, '#41803a');
+  addLeaves(flower, 2, '#43903f');
+
+  const head = new THREE.Group();
+  head.position.y = 1.12;
+  flower.add(head);
+
+  const material = petalMaterial('#c22b53', '#ff8ba7', '#7d0f2c', 0.35);
+
+  for (let i = 0; i < 6; i++) {
+    const petal = new THREE.Mesh(
+      createPetalGeometry({ length: 0.52, width: 0.3, curl: 0.16, cup: 0.2 }),
+      material
+    );
+    const angle = (i / 6) * Math.PI * 2;
+    petal.position.set(Math.cos(angle) * 0.025, 0, Math.sin(angle) * 0.025);
+    petal.rotation.set(0.22, angle, 0);
+    petal.castShadow = true;
+    head.add(petal);
+  }
+
+  return flower;
+}
+
+function buildSunflower() {
+  const flower = new THREE.Group();
+  addStem(flower, 1.15, '#4c7c31');
+  addLeaves(flower, 3, '#4d8a31');
+
+  const head = new THREE.Group();
+  head.position.y = 1.22;
+  head.rotation.x = 0.18;
+  flower.add(head);
+
+  const material = petalMaterial('#d98a00', '#ffd75e', '#8a5200', 0.45);
+
+  for (let i = 0; i < 26; i++) {
+    const petal = new THREE.Mesh(
+      createPetalGeometry({ length: 0.58, width: 0.11, curl: 0.22, cup: 0.05 }),
+      material
+    );
+    const angle = (i / 26) * Math.PI * 2;
+    petal.position.set(Math.cos(angle) * 0.07, 0, Math.sin(angle) * 0.07);
+    petal.rotation.set(-Math.PI / 2 + 0.28, angle, 0);
+    petal.castShadow = true;
+    head.add(petal);
+  }
+
+  const center = new THREE.Mesh(
+    new THREE.SphereGeometry(0.13, 28, 20),
+    new THREE.MeshStandardMaterial({ color: '#4b2d10', roughness: 0.85 })
+  );
+  center.scale.z = 0.45;
+  head.add(center);
+
+  const seedMaterial = new THREE.MeshStandardMaterial({ color: '#2f1a08', roughness: 0.9 });
+
+  for (let i = 0; i < 70; i++) {
+    const seed = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 5), seedMaterial);
+    const a = Math.random() * Math.PI * 2;
+    const r = Math.sqrt(Math.random()) * 0.115;
+    seed.position.set(Math.cos(a) * r, Math.sin(a) * r, 0.055);
+    seed.rotation.set(Math.random(), Math.random(), Math.random());
+    head.add(seed);
+  }
+
+  return flower;
+}
+
+function buildLily() {
+  const flower = new THREE.Group();
+  addStem(flower, 1.1, '#41803a');
+  addLeaves(flower, 3, '#3f8a3c');
+
+  const head = new THREE.Group();
+  head.position.y = 1.18;
+  flower.add(head);
+
+  const material = petalMaterial('#d94f7d', '#fff1f4', '#a02048', 0.35);
+
+  for (let i = 0; i < 6; i++) {
+    const petal = new THREE.Mesh(
+      createPetalGeometry({ length: 0.68, width: 0.22, curl: -0.22, cup: 0.1 }),
+      material
+    );
+    const angle = (i / 6) * Math.PI * 2;
+    petal.position.set(Math.cos(angle) * 0.03, 0, Math.sin(angle) * 0.03);
+    petal.rotation.set(0.85, angle, 0);
+    petal.castShadow = true;
+    head.add(petal);
+  }
+
+  const stamenMaterial = new THREE.MeshStandardMaterial({ color: '#d9c26a', roughness: 0.5 });
+
+  for (let i = 0; i < 6; i++) {
+    const stamen = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.004, 0.004, 0.24, 6),
+      stamenMaterial
+    );
+    const angle = (i / 6) * Math.PI * 2;
+    stamen.position.set(Math.cos(angle) * 0.045, 0.08, Math.sin(angle) * 0.045);
+    stamen.rotation.set(0.55, angle, 0);
+    head.add(stamen);
+
+    const anther = new THREE.Mesh(
+      new THREE.SphereGeometry(0.018, 10, 8),
+      new THREE.MeshStandardMaterial({ color: '#8a5b12', roughness: 0.6 })
+    );
+    anther.position.set(Math.cos(angle) * 0.09, 0.19, Math.sin(angle) * 0.09);
+    head.add(anther);
+  }
+
+  return flower;
+}
+
+function buildHydrangea() {
+  const flower = new THREE.Group();
+  addStem(flower, 0.95, '#41803a');
+  addLeaves(flower, 3, '#3d8a3a');
+
+  const cluster = new THREE.Group();
+  cluster.position.y = 1.05;
+  flower.add(cluster);
+
+  const petalMaterialBlue = petalMaterial('#3f6fd8', '#b9d0ff', '#20386f', 0.4);
+  const petalMaterialLight = petalMaterial('#7f9ff0', '#e6efff', '#3a5490', 0.4);
+
+  for (let i = 0; i < 34; i++) {
+    const floret = new THREE.Group();
+    const a = Math.random() * Math.PI * 2;
+    const b = Math.acos(2 * Math.random() - 1);
+    const radius = 0.2;
+
+    floret.position.set(
+      Math.sin(b) * Math.cos(a) * radius,
+      Math.cos(b) * radius,
+      Math.sin(b) * Math.sin(a) * radius
+    );
+    floret.rotation.set(Math.random(), Math.random(), Math.random());
+
+    const material = Math.random() > 0.5 ? petalMaterialBlue : petalMaterialLight;
+
+    for (let p = 0; p < 4; p++) {
+      const petal = new THREE.Mesh(
+        createPetalGeometry({ length: 0.1, width: 0.09, curl: 0.08, cup: 0.04 }),
+        material
+      );
+      const angle = (p / 4) * Math.PI * 2;
+      petal.position.set(Math.cos(angle) * 0.018, 0, Math.sin(angle) * 0.018);
+      petal.rotation.set(-0.5, angle, 0);
+      floret.add(petal);
+    }
+
+    const core = new THREE.Mesh(
+      new THREE.SphereGeometry(0.012, 8, 6),
+      new THREE.MeshStandardMaterial({ color: '#e8f2ff', roughness: 0.6 })
+    );
+    floret.add(core);
+    cluster.add(floret);
+  }
+
+  return flower;
+}
+
+function buildPeony() {
+  const flower = new THREE.Group();
+  addStem(flower, 0.95);
+  addLeaves(flower, 3, '#3d7c38');
+
+  const head = new THREE.Group();
+  head.position.y = 1.05;
+  flower.add(head);
+
+  const material = petalMaterial('#c2336b', '#ffb7cf', '#741034', 0.4);
+  const layers = [
+    { count: 10, tilt: -1.05, scale: 1, radius: 0.1 },
+    { count: 9, tilt: -0.7, scale: 0.85, radius: 0.07 },
+    { count: 8, tilt: -0.35, scale: 0.7, radius: 0.045 },
+    { count: 6, tilt: -0.05, scale: 0.55, radius: 0.02 }
+  ];
+
+  layers.forEach((layer, li) => {
+    for (let i = 0; i < layer.count; i++) {
+      const petal = new THREE.Mesh(
+        createPetalGeometry({
+          length: 0.34,
+          width: 0.32,
+          curl: 0.45 + Math.random() * 0.2,
+          cup: 0.18
+        }),
+        material
+      );
+      const angle = (i / layer.count) * Math.PI * 2 + li * 0.35;
+      petal.position.set(Math.cos(angle) * layer.radius, li * 0.03, Math.sin(angle) * layer.radius);
+      petal.rotation.set(layer.tilt, angle, (Math.random() - 0.5) * 0.2);
+      petal.scale.setScalar(layer.scale);
+      petal.castShadow = true;
+      head.add(petal);
+    }
+  });
+
+  const center = new THREE.Mesh(
+    new THREE.SphereGeometry(0.055, 18, 14),
+    new THREE.MeshStandardMaterial({ color: '#f4d67a', roughness: 0.55 })
+  );
+  center.position.y = 0.05;
+  head.add(center);
+
+  return flower;
+}
+
+const builders = {
+  rose: buildRose,
+  tulip: buildTulip,
+  sunflower: buildSunflower,
+  lily: buildLily,
+  hydrangea: buildHydrangea,
+  peony: buildPeony
+};
+
+let currentFlower = null;
+
+function showFlower(type) {
+  if (currentFlower) {
+    scene.remove(currentFlower);
+    currentFlower.traverse(child => {
+      if (child.geometry) child.geometry.dispose();
+    });
+  }
+
+  currentFlower = builders[type]();
+  scene.add(currentFlower);
+}
+
+document.querySelectorAll('#menu button').forEach(button => {
+  button.addEventListener('click', () => {
+    document.querySelectorAll('#menu button').forEach(item => item.classList.remove('active'));
+    button.classList.add('active');
+    showFlower(button.dataset.flower);
+  });
+});
+
+showFlower('rose');
+
+const pollenCount = 220;
+const pollenGeometry = new THREE.BufferGeometry();
+const pollenPositions = new Float32Array(pollenCount * 3);
+
+for (let i = 0; i < pollenCount; i++) {
+  pollenPositions[i * 3] = (Math.random() - 0.5) * 8;
+  pollenPositions[i * 3 + 1] = Math.random() * 4;
+  pollenPositions[i * 3 + 2] = (Math.random() - 0.5) * 8;
+}
+
+pollenGeometry.setAttribute('position', new THREE.BufferAttribute(pollenPositions, 3));
+
+const pollen = new THREE.Points(
+  pollenGeometry,
+  new THREE.PointsMaterial({ color: '#ffe9a8', size: 0.02, transparent: true, opacity: 0.7, depthWrite: false })
+);
+scene.add(pollen);
+
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const time = clock.getElapsedTime();
+
+  if (currentFlower) {
+    currentFlower.rotation.y += 0.002;
+    currentFlower.position.y = Math.sin(time * 1.1) * 0.012;
+  }
+
+  warm.intensity = 7 + Math.sin(time * 1.6) * 1.2;
+
+  const positions = pollen.geometry.attributes.position.array;
+  for (let i = 0; i < pollenCount; i++) {
+    positions[i * 3 + 1] += 0.0015;
+    positions[i * 3] += Math.sin(time * 0.5 + i) * 0.0005;
+    if (positions[i * 3 + 1] > 4.2) positions[i * 3 + 1] = 0;
+  }
+  pollen.geometry.attributes.position.needsUpdate = true;
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+setTimeout(() => loading.classList.add('hidden'), 600);
+</script>
+
+</body>
+</html>
