@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createClient } from '@supabase/supabase-js'
@@ -11,51 +10,42 @@ import {
   ArrowLeft,
   Check,
   Sun,
+  Minus,
+  Plus,
+  Shuffle,
 } from 'lucide-react'
-import Rose3D from './Rose3D.jsx'
+import Flower3D from './Flower3D.jsx'
 import './styles.css'
 
 const FLOWERS = [
   {
-    id: 'bouquet',
-    name: 'Нежный букет',
-    short: 'Нежный',
-    sub: 'букет',
-    emoji: '💐',
-  },
-  {
     id: 'roses',
     name: 'Красные розы',
-    short: 'Красные',
-    sub: 'розы',
+    short: 'Розы',
     emoji: '🌹',
   },
   {
     id: 'tulips',
     name: 'Тюльпаны',
     short: 'Тюльпаны',
-    sub: 'весенние',
     emoji: '🌷',
   },
   {
     id: 'sunflowers',
     name: 'Подсолнухи',
     short: 'Подсолнухи',
-    sub: 'солнечные',
     emoji: '🌻',
   },
   {
     id: 'lavender',
     name: 'Лаванда',
     short: 'Лаванда',
-    sub: 'спокойствие',
     emoji: '🪻',
   },
   {
     id: 'sakura',
     name: 'Сакура',
     short: 'Сакура',
-    sub: 'нежность',
     emoji: '🌸',
   },
 ]
@@ -91,7 +81,14 @@ function makeCode() {
 
 function App() {
   const [tab, setTab] = useState('make')
-  const [flowerId, setFlowerId] = useState('bouquet')
+  const [composition, setComposition] = useState({
+    roses: 3,
+    tulips: 0,
+    sunflowers: 0,
+    lavender: 0,
+    sakura: 0,
+  })
+  const [seed, setSeed] = useState(1)
   const [sender, setSender] = useState('')
   const [message, setMessage] = useState('')
   const [codeInput, setCodeInput] = useState('')
@@ -101,10 +98,28 @@ function App() {
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
 
-  const flower =
-    FLOWERS.find(f => f.id === flowerId) || FLOWERS[0]
-
   const isCloud = Boolean(supabase)
+
+  const items = FLOWERS
+    .map(flower => ({
+      type: flower.id,
+      count: composition[flower.id] || 0,
+    }))
+    .filter(item => item.count > 0)
+
+  const totalFlowers = items.reduce(
+    (sum, item) => sum + item.count,
+    0
+  )
+
+  const bouquetName = items.length
+    ? `Букет: ${items
+        .map(item => {
+          const flower = FLOWERS.find(f => f.id === item.type)
+          return `${item.count} × ${flower.name}`
+        })
+        .join(', ')}`
+    : 'Пустой букет'
 
   useEffect(() => {
     if (createdCode) {
@@ -125,8 +140,28 @@ function App() {
     setCopied(false)
   }
 
+  function changeCount(flowerId, delta) {
+    setComposition(prev => {
+      const next = {
+        ...prev,
+        [flowerId]: Math.max(0, Math.min(30, (prev[flowerId] || 0) + delta)),
+      }
+
+      return next
+    })
+  }
+
+  function reshuffle() {
+    setSeed(prev => prev + 1)
+  }
+
   async function createGift(e) {
     e.preventDefault()
+
+    if (totalFlowers === 0) {
+      setError('Добавь хотя бы один цветок в букет.')
+      return
+    }
 
     setBusy(true)
     setError('')
@@ -148,9 +183,9 @@ function App() {
 
         const item = {
           code,
-          flower_id: flower.id,
-          flower_name: flower.name,
-          flower_emoji: flower.emoji,
+          flower_id: 'bouquet',
+          flower_name: bouquetName,
+          flower_emoji: '💐',
           sender: cleanSender,
           message: cleanMessage,
         }
@@ -295,40 +330,46 @@ function App() {
         </div>
 
         <h1>
-          Подари ей цветы.
+          Собери букет.
           <br />
-          <em>Даже на расстоянии.</em>
+          <em>Отправь по коду.</em>
         </h1>
 
         <p>
-          Собери виртуальный букет, добавь пару слов
-          и отправь ей секретный код.
+          Выбирай цветы, меняй количество
+          и собирай свой букет.
         </p>
 
-        <div
-          className={`flower-stage ${flowerId === 'roses' ? 'rose-stage' : ''}`}
-          aria-label={`Букет: ${flower.name}`}
-        >
+        <div className="flower-stage rose-stage">
           <div className="halo" />
 
-          {flowerId === 'roses' ? (
-            <div className="rose-3d-stage">
-              <Rose3D />
-            </div>
+          {totalFlowers === 0 ? (
+            <div className="hero-flower">💐</div>
           ) : (
-            <div className="hero-flower" key={flower.emoji}>
-              {flower.emoji}
+            <div className="rose-3d-stage">
+              <Flower3D items={items} seed={seed} />
             </div>
           )}
 
           <span className="spark spark-one">✦</span>
           <span className="spark spark-two">✧</span>
           <span className="spark spark-three">✦</span>
-
-          <span className="floating-heart">
-            <Heart size={17} fill="currentColor" />
-          </span>
         </div>
+
+        <button
+          type="button"
+          className="primary"
+          style={{
+            width: 'auto',
+            margin: '14px auto 0',
+            padding: '11px 18px',
+          }}
+          onClick={reshuffle}
+          disabled={totalFlowers === 0}
+        >
+          <Shuffle size={16} />
+          Пересобрать букет
+        </button>
       </section>
 
       <section className="panel">
@@ -355,30 +396,92 @@ function App() {
         {tab === 'make' ? (
           <form onSubmit={createGift}>
             <label className="section-label">
-              01 <span>Выбери букет</span>
+              01 <span>Собери букет</span>
             </label>
 
             <div className="flower-grid">
-              {FLOWERS.map(f => (
-                <button
-                  type="button"
-                  key={f.id}
-                  className={`flower-option ${flowerId === f.id ? 'selected' : ''}`}
-                  onClick={() => setFlowerId(f.id)}
-                  aria-pressed={flowerId === f.id}
-                >
-                  <span className="flower-emoji">{f.emoji}</span>
-                  <strong>{f.short}</strong>
-                  <small>{f.sub}</small>
+              {FLOWERS.map(flower => {
+                const count = composition[flower.id] || 0
 
-                  {flowerId === f.id && (
-                    <span className="check-mark">
-                      <Check size={12} />
-                    </span>
-                  )}
-                </button>
-              ))}
+                return (
+                  <div
+                    key={flower.id}
+                    className={`flower-option ${count > 0 ? 'selected' : ''}`}
+                  >
+                    <span className="flower-emoji">{flower.emoji}</span>
+                    <strong>{flower.short}</strong>
+
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        marginTop: '6px',
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => changeCount(flower.id, -1)}
+                        style={{
+                          width: '26px',
+                          height: '26px',
+                          borderRadius: '8px',
+                          border: '1px solid #ecd7de',
+                          background: '#fff',
+                          display: 'grid',
+                          placeItems: 'center',
+                          cursor: 'pointer',
+                        }}
+                        aria-label={`Убрать ${flower.name}`}
+                      >
+                        <Minus size={13} />
+                      </button>
+
+                      <span
+                        style={{
+                          minWidth: '18px',
+                          fontSize: '13px',
+                          fontWeight: '800',
+                        }}
+                      >
+                        {count}
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => changeCount(flower.id, 1)}
+                        style={{
+                          width: '26px',
+                          height: '26px',
+                          borderRadius: '8px',
+                          border: '1px solid #ecd7de',
+                          background: '#fff',
+                          display: 'grid',
+                          placeItems: 'center',
+                          cursor: 'pointer',
+                        }}
+                        aria-label={`Добавить ${flower.name}`}
+                      >
+                        <Plus size={13} />
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
+
+            <p
+              style={{
+                marginTop: '12px',
+                fontSize: '12px',
+                color: '#947a83',
+                textAlign: 'center',
+              }}
+            >
+              {totalFlowers === 0
+                ? 'Добавь хотя бы один цветок.'
+                : `В букете: ${totalFlowers} шт.`}
+            </p>
 
             <label className="field-label" htmlFor="sender">
               02 · От кого?
@@ -471,7 +574,7 @@ function App() {
               ) : (
                 <>
                   Открыть подарок
-                  <Gift size={17} />
+                  <Gift size={16} />
                 </>
               )}
             </button>
@@ -479,7 +582,7 @@ function App() {
             <p className="helper">
               {isCloud
                 ? 'Код можно открыть на любом устройстве.'
-                : 'Демо-режим: код работает только в этом браузере. Подключи Supabase, чтобы делиться подарками между устройствами.'}
+                : 'Демо-режим: код работает только в этом браузере.'}
             </p>
 
             {gift && (
@@ -513,7 +616,7 @@ function App() {
             </div>
 
             <div className="eyebrow">ПОДАРОК СОЗДАН</div>
-            <div className="created-flower">{flower.emoji}</div>
+            <div className="created-flower">💐</div>
             <h2>Теперь отправь ей код</h2>
 
             <p className="helper">
