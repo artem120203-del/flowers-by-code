@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createClient } from '@supabase/supabase-js'
@@ -11,6 +12,7 @@ import {
   Check,
   Sun,
 } from 'lucide-react'
+import Rose3D from './Rose3D.jsx'
 import './styles.css'
 
 const FLOWERS = [
@@ -141,11 +143,7 @@ function App() {
       let code = ''
       let saved = false
 
-      for (
-        let attempt = 0;
-        attempt < 4 && !saved;
-        attempt++
-      ) {
+      for (let attempt = 0; attempt < 4 && !saved; attempt++) {
         code = makeCode()
 
         const item = {
@@ -165,9 +163,7 @@ function App() {
           if (!insertError) {
             saved = true
           } else if (
-            !/duplicate|unique/i.test(
-              insertError.message || ''
-            )
+            !/duplicate|unique/i.test(insertError.message || '')
           ) {
             throw insertError
           }
@@ -180,20 +176,14 @@ function App() {
               created_at: new Date().toISOString(),
             }
 
-            localStorage.setItem(
-              STORAGE_KEY,
-              JSON.stringify(all)
-            )
-
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(all))
             saved = true
           }
         }
       }
 
       if (!saved) {
-        throw new Error(
-          'Не удалось подобрать код. Попробуй ещё раз.'
-        )
+        throw new Error('Не удалось подобрать код. Попробуй ещё раз.')
       }
 
       setCreatedCode(code)
@@ -238,9 +228,7 @@ function App() {
           })
           .maybeSingle()
 
-        if (readError) {
-          throw readError
-        }
+        if (readError) throw readError
 
         found = data
       } else {
@@ -294,11 +282,7 @@ function App() {
           <span>ЦВЕТЫ ПО КОДУ</span>
         </a>
 
-        <span
-          className={`mode-chip ${
-            isCloud ? 'cloud' : ''
-          }`}
-        >
+        <span className={`mode-chip ${isCloud ? 'cloud' : ''}`}>
           <span className="status-dot" />
           {isCloud ? 'Общие подарки' : 'Демо-режим'}
         </span>
@@ -322,27 +306,27 @@ function App() {
         </p>
 
         <div
-          className="flower-stage"
+          className={`flower-stage ${flowerId === 'roses' ? 'rose-stage' : ''}`}
           aria-label={`Букет: ${flower.name}`}
         >
           <div className="halo" />
+
+          {flowerId === 'roses' ? (
+            <div className="rose-3d-stage">
+              <Rose3D />
+            </div>
+          ) : (
+            <div className="hero-flower" key={flower.emoji}>
+              {flower.emoji}
+            </div>
+          )}
 
           <span className="spark spark-one">✦</span>
           <span className="spark spark-two">✧</span>
           <span className="spark spark-three">✦</span>
 
-          <div
-            className="hero-flower"
-            key={flower.emoji}
-          >
-            {flower.emoji}
-          </div>
-
           <span className="floating-heart">
-            <Heart
-              size={17}
-              fill="currentColor"
-            />
+            <Heart size={17} fill="currentColor" />
           </span>
         </div>
       </section>
@@ -351,9 +335,7 @@ function App() {
         <div className="tabs">
           <button
             type="button"
-            className={`tab ${
-              tab === 'make' ? 'active' : ''
-            }`}
+            className={`tab ${tab === 'make' ? 'active' : ''}`}
             onClick={() => setMode('make')}
           >
             <Heart size={16} />
@@ -362,9 +344,7 @@ function App() {
 
           <button
             type="button"
-            className={`tab ${
-              tab === 'open' ? 'active' : ''
-            }`}
+            className={`tab ${tab === 'open' ? 'active' : ''}`}
             onClick={() => setMode('open')}
           >
             <Gift size={16} />
@@ -383,18 +363,11 @@ function App() {
                 <button
                   type="button"
                   key={f.id}
-                  className={`flower-option ${
-                    flowerId === f.id
-                      ? 'selected'
-                      : ''
-                  }`}
+                  className={`flower-option ${flowerId === f.id ? 'selected' : ''}`}
                   onClick={() => setFlowerId(f.id)}
                   aria-pressed={flowerId === f.id}
                 >
-                  <span className="flower-emoji">
-                    {f.emoji}
-                  </span>
-
+                  <span className="flower-emoji">{f.emoji}</span>
                   <strong>{f.short}</strong>
                   <small>{f.sub}</small>
 
@@ -407,58 +380,39 @@ function App() {
               ))}
             </div>
 
-            <label
-              className="field-label"
-              htmlFor="sender"
-            >
+            <label className="field-label" htmlFor="sender">
               02 · От кого?
             </label>
 
             <input
               id="sender"
               value={sender}
-              onChange={e =>
-                setSender(e.target.value)
-              }
+              onChange={e => setSender(e.target.value)}
               maxLength={40}
               placeholder="Твоё имя или подпись"
             />
 
-            <label
-              className="field-label"
-              htmlFor="message"
-            >
+            <label className="field-label" htmlFor="message">
               03 · Напиши ей что-нибудь
             </label>
 
             <textarea
               id="message"
               value={message}
-              onChange={e =>
-                setMessage(e.target.value)
-              }
+              onChange={e => setMessage(e.target.value)}
               maxLength={240}
               placeholder="Например: Даже если я далеко, я хочу, чтобы ты улыбнулась ❤️"
             />
 
-            <div className="counter">
-              {message.length}/240
-            </div>
+            <div className="counter">{message.length}/240</div>
 
             {error && (
-              <div
-                className="error"
-                role="alert"
-              >
+              <div className="error" role="alert">
                 {error}
               </div>
             )}
 
-            <button
-              className="primary"
-              type="submit"
-              disabled={busy}
-            >
+            <button className="primary" type="submit" disabled={busy}>
               {busy ? (
                 'Создаём подарок…'
               ) : (
@@ -478,21 +432,12 @@ function App() {
         ) : (
           <form onSubmit={redeemGift}>
             <div className="open-intro">
-              <span className="letter-icon">
-                💌
-              </span>
-
+              <span className="letter-icon">💌</span>
               <h2>У тебя подарок</h2>
-
-              <p>
-                Введи код, который тебе прислали.
-              </p>
+              <p>Введи код, который тебе прислали.</p>
             </div>
 
-            <label
-              className="field-label"
-              htmlFor="code"
-            >
+            <label className="field-label" htmlFor="code">
               Секретный код
             </label>
 
@@ -515,19 +460,12 @@ function App() {
             />
 
             {error && (
-              <div
-                className="error"
-                role="alert"
-              >
+              <div className="error" role="alert">
                 {error}
               </div>
             )}
 
-            <button
-              className="primary"
-              type="submit"
-              disabled={busy}
-            >
+            <button className="primary" type="submit" disabled={busy}>
               {busy ? (
                 'Ищем подарок…'
               ) : (
@@ -545,14 +483,8 @@ function App() {
             </p>
 
             {gift && (
-              <div
-                className="gift-reveal"
-                key={gift.code}
-              >
-                <div
-                  className="confetti"
-                  aria-hidden="true"
-                >
+              <div className="gift-reveal" key={gift.code}>
+                <div className="confetti" aria-hidden="true">
                   ✦　✧　✦
                 </div>
 
@@ -560,46 +492,28 @@ function App() {
                   {gift.flower_emoji}
                 </div>
 
-                <div className="eyebrow">
-                  ЭТО ДЛЯ ТЕБЯ
-                </div>
-
+                <div className="eyebrow">ЭТО ДЛЯ ТЕБЯ</div>
                 <h2>{gift.flower_name}</h2>
-
-                <p className="gift-message">
-                  {gift.message}
-                </p>
+                <p className="gift-message">{gift.message}</p>
 
                 <p className="gift-from">
-                  С теплом, от{' '}
-                  <strong>{gift.sender}</strong>
+                  С теплом, от <strong>{gift.sender}</strong>
                 </p>
 
-                <div className="heart-row">
-                  ♥　✦　♥
-                </div>
+                <div className="heart-row">♥　✦　♥</div>
               </div>
             )}
           </form>
         )}
 
         {tab === 'make' && createdCode && (
-          <div
-            className="created-card"
-            id="created-card"
-          >
+          <div className="created-card" id="created-card">
             <div className="success-icon">
               <Check size={22} />
             </div>
 
-            <div className="eyebrow">
-              ПОДАРОК СОЗДАН
-            </div>
-
-            <div className="created-flower">
-              {flower.emoji}
-            </div>
-
+            <div className="eyebrow">ПОДАРОК СОЗДАН</div>
+            <div className="created-flower">{flower.emoji}</div>
             <h2>Теперь отправь ей код</h2>
 
             <p className="helper">
@@ -608,9 +522,7 @@ function App() {
                 : 'Код сохранён в этом браузере. Для другого телефона подключи Supabase.'}
             </p>
 
-            <div className="code-display">
-              {createdCode}
-            </div>
+            <div className="code-display">{createdCode}</div>
 
             <button
               type="button"
@@ -655,6 +567,4 @@ function App() {
   )
 }
 
-createRoot(document.getElementById('root')).render(
-  <App />
-)
+createRoot(document.getElementById('root')).render(<App />)
