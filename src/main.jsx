@@ -15,6 +15,7 @@ import {
   Shuffle,
 } from 'lucide-react'
 import Flower3D from './Flower3D.jsx'
+import GiftRevealScene from './GiftRevealScene.jsx'
 import './styles.css'
 
 const FLOWERS = [
@@ -93,6 +94,7 @@ function App() {
   const [message, setMessage] = useState('')
   const [codeInput, setCodeInput] = useState('')
   const [gift, setGift] = useState(null)
+  const [revealDone, setRevealDone] = useState(false)
   const [createdCode, setCreatedCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -136,19 +138,16 @@ function App() {
     setTab(mode)
     setError('')
     setGift(null)
+    setRevealDone(false)
     setCreatedCode('')
     setCopied(false)
   }
 
   function changeCount(flowerId, delta) {
-    setComposition(prev => {
-      const next = {
-        ...prev,
-        [flowerId]: Math.max(0, Math.min(30, (prev[flowerId] || 0) + delta)),
-      }
-
-      return next
-    })
+    setComposition(prev => ({
+      ...prev,
+      [flowerId]: Math.max(0, Math.min(30, (prev[flowerId] || 0) + delta)),
+    }))
   }
 
   function reshuffle() {
@@ -241,6 +240,7 @@ function App() {
     setBusy(true)
     setError('')
     setGift(null)
+    setRevealDone(false)
 
     const code = codeInput
       .trim()
@@ -584,28 +584,6 @@ function App() {
                 ? 'Код можно открыть на любом устройстве.'
                 : 'Демо-режим: код работает только в этом браузере.'}
             </p>
-
-            {gift && (
-              <div className="gift-reveal" key={gift.code}>
-                <div className="confetti" aria-hidden="true">
-                  ✦　✧　✦
-                </div>
-
-                <div className="revealed-flower">
-                  {gift.flower_emoji}
-                </div>
-
-                <div className="eyebrow">ЭТО ДЛЯ ТЕБЯ</div>
-                <h2>{gift.flower_name}</h2>
-                <p className="gift-message">{gift.message}</p>
-
-                <p className="gift-from">
-                  С теплом, от <strong>{gift.sender}</strong>
-                </p>
-
-                <div className="heart-row">♥　✦　♥</div>
-              </div>
-            )}
           </form>
         )}
 
@@ -659,6 +637,35 @@ function App() {
           </div>
         )}
       </section>
+
+      {gift && !revealDone && (
+        <GiftRevealScene
+          gift={gift}
+          onDone={() => setRevealDone(true)}
+        />
+      )}
+
+      {gift && revealDone && (
+        <div className="gift-reveal" key={gift.code}>
+          <div className="confetti" aria-hidden="true">
+            ✦　✧　✦
+          </div>
+
+          <div className="revealed-flower">
+            {gift.flower_emoji}
+          </div>
+
+          <div className="eyebrow">ЭТО ДЛЯ ТЕБЯ</div>
+          <h2>{gift.flower_name}</h2>
+          <p className="gift-message">{gift.message}</p>
+
+          <p className="gift-from">
+            С теплом, от <strong>{gift.sender}</strong>
+          </p>
+
+          <div className="heart-row">♥　✦　♥</div>
+        </div>
+      )}
 
       <footer>
         <Flower2 size={14} />
